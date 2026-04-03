@@ -1,3 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<session version="1.0">&#x0A;<refactoring comment="Delete resource &apos;Lab2_FreeRTOS/tm4c1294ncpdt_startup_ccs.c&apos;" deleteContents="false" description="Delete resource &apos;Lab2_FreeRTOS/tm4c1294ncpdt_startup_ccs.c&apos;" element1="/Lab2_FreeRTOS/tm4c1294ncpdt_startup_ccs.c" flags="7" id="org.eclipse.ltk.core.refactoring.delete.resources" resources="1" stamp="1775099989559"/>&#x0A;<refactoring comment="Rename resource &apos;Lab2_FreeRTOS&apos; to &apos;ece3849_lab1_hesmith&apos;" description="Rename resource &apos;Lab2_FreeRTOS&apos;" flags="7" id="org.eclipse.ltk.core.refactoring.rename.resource" input="/Lab2_FreeRTOS" name="ece3849_lab1_hesmith" stamp="1775184675607" updateReferences="true"/>
-</session>
