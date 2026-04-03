@@ -1,0 +1,283 @@
+#include <stdint.h>
+#include <stdio.h>
+#include <stdbool.h>
+
+extern "C" {
+#include "driverlib/fpu.h"
+#include "driverlib/interrupt.h"
+#include "driverlib/sysctl.h"
+#include "driverlib/gpio.h"
+#include "inc/hw_memmap.h"
+#include "FreeRTOS.h"
+#include "queue.h"
+#include "task.h"
+#include "Crystalfontz128x128_ST7735.h"
+}
+
+#include "button.h"
+#include "pins.h"
+#include "joystick.h"
+#include "OPT3001.h"
+//#include "elapsedTime.h"
+//#include "timerLib.h"
+
+//---------------------------------------------------------------------------
+
+/*void blinkLEDOne(void *pvParameters) {
+    for(;;){
+        GPIOPinWrite(GPIO_PORTN_BASE, GPIO_PIN_0, GPIO_PIN_0); // LED ON
+        vTaskDelay(pdMS_TO_TICKS(2000));
+        GPIOPinWrite(GPIO_PORTN_BASE, GPIO_PIN_0, 0);          // LED OFF
+        vTaskDelay(pdMS_TO_TICKS(2000));
+    }
+}
+
+void blinkLEDTwo(void *pvParameters) {
+    for(;;){
+        GPIOPinWrite(GPIO_PORTN_BASE, GPIO_PIN_1, GPIO_PIN_1); // LED ON
+        vTaskDelay(pdMS_TO_TICKS(200));
+        GPIOPinWrite(GPIO_PORTN_BASE, GPIO_PIN_1, 0);          // LED OFF
+        vTaskDelay(pdMS_TO_TICKS(200));
+    }
+}
+
+int main(void) {
+    IntMasterDisable();
+    FPUEnable();
+    FPULazyStackingEnable();
+
+    SysCtlClockFreqSet(
+        SYSCTL_XTAL_25MHZ | SYSCTL_OSC_MAIN |
+        SYSCTL_USE_PLL | SYSCTL_CFG_VCO_480,
+        120000000
+    );
+
+    // Enable GPIO Port N and configure PN1 (LED D1) as output
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_GPION);
+    while (!SysCtlPeripheralReady(SYSCTL_PERIPH_GPION)) {}
+    GPIOPinTypeGPIOOutput(GPIO_PORTN_BASE, GPIO_PIN_0);
+    GPIOPinTypeGPIOOutput(GPIO_PORTN_BASE, GPIO_PIN_1);
+
+    IntMasterEnable();
+
+    // Create a single task — just enough to prove the scheduler works
+    xTaskCreate(blinkLEDOne, "LED1", 128, NULL, 1, NULL);
+    xTaskCreate(blinkLEDTwo, "LED2", 128, NULL, 1, NULL);
+
+    // Start scheduler (never returns)
+    vTaskStartScheduler();
+
+    while (1);
+}*/
+
+//---------------------------------------------------------------------------
+
+volatile bool gRunning = false;
+volatile uint16_t g_ms  = 0;
+volatile uint8_t  g_sec = 0;
+volatile uint8_t  g_min = 0;
+volatile uint8_t  g_hr  = 0;
+
+TickType_t timeKeepLastWake = xTaskGetTickCount();
+
+static Button btnPlayPause(S1);     // S1 -> Play/Pause
+static Button btnRestart(S2);       // S2 -> Restart
+
+struct MyButton {
+    int x, y, w, h;
+    const char* label;
+    bool pressed;
+};
+
+static MyButton btnStart = {39, 60, 50, 28, "PLAY", false};
+static MyButton btnReset = {39, 100, 50, 28, "Reset", false};
+
+static void initializeDisplay(tContext &context);
+static void setupButtons();
+static void drawStopwatchScreen(tContext &context, bool running);
+static void drawButton(tContext &context, const MyButton &btn);
+
+void timeKeeping(void *pvParameters) {
+    for(;;){
+        if (gRunning){
+            g_ms += 10;
+
+            if (g_ms >= 1000){
+                g_ms = 0;
+                g_sec++;
+                if (g_sec >= 60){
+                    g_sec = 0;
+                    g_min++;
+                    if (g_min >= 60){
+                        g_min = 0;
+                        g_hr++;
+                        if (g_hr > 99){
+                            g_hr = 99;
+                        }
+                    }
+                }
+            }
+        }
+        vTaskDelayUntil(&timeKeepLastWake, pdMS_TO_TICKS(10));
+    }
+}
+
+void buttonScanning(void *pvParameters) {
+    for (;;){
+        if (btnPlayPause.wasPressed()){
+            gRunning != gRunning;
+        }
+        if (btnRestart.wasPressed()){
+
+        }
+
+        vTaskDelayUntil(&timeKeepLastWake, pdMS_TO_TICKS(20));
+    }
+}
+
+void displayUpdating (void *pvParameters) {
+    for (;;){
+        tContext* sContext;
+        uint16_t milseconds = g_ms;
+        uint8_t seconds = g_sec;
+        uint8_t minutes = g_min;
+        uint8_t hours = g_hr;
+
+        GrContextInit(sContext, &g_sCrystalfontz128x128);
+        GrContextFontSet(sContext, &g_sFontFixed6x8);
+
+        tRectangle full = {0, 0, 127, 127};
+        GrContextForegroundSet(sContext, ClrBlack);
+        GrRectFill(sContext, &full);
+
+        char hoursSTR[20];
+
+        tRectangle rectFull = {0, 0, 127, 127};
+        GrContextForegroundSet(sContext, ClrBlack);
+        GrRectFill(sContext, &rectFull);
+
+        GrContextForegroundSet(sContext, ClrCyan);
+        GrStringDrawCentered(sContext, "STOPWATCH", -1, 64, 15, false);
+
+        snprintf(hoursSTR, sizeof(hoursSTR), "%02u : %02u : %02u : %02u", hours, minutes, seconds, milseconds);
+
+        if (gRunning){
+            GrContextForegroundSet(sContext, ClrGreen);
+            GrStringDrawCentered(sContext, "Running", -1, 64, 35, false);
+
+            GrContextForegroundSet(sContext, ClrYellow);
+            GrStringDrawCentered(sContext, hoursSTR, -1, 64, 50, false);
+        }
+        else{
+            GrContextForegroundSet(sContext, ClrRed);
+            GrStringDrawCentered(sContext, "Stopped", -1, 64, 35, false);
+
+            GrContextForegroundSet(sContext, ClrOlive);
+            GrStringDrawCentered(sContext, hoursSTR, -1, 64, 50, false);
+        }
+
+        vTaskDelayUntil(&timeKeepLastWake, pdMS_TO_TICKS(50));
+    }
+}
+
+int main(void) {
+    IntMasterDisable();
+
+    FPUEnable();
+    FPULazyStackingEnable();
+
+    SysCtlClockFreqSet(
+        SYSCTL_XTAL_25MHZ | SYSCTL_OSC_MAIN |
+        SYSCTL_USE_PLL | SYSCTL_CFG_VCO_480,
+        120000000
+    );
+
+    setupButtons();
+
+    Crystalfontz128x128_Init();
+    Crystalfontz128x128_SetOrientation(LCD_ORIENTATION_UP);
+
+    IntMasterEnable();
+
+
+    xTaskCreate(displayUpdating, "displayUpdate", 512, NULL, 1, NULL);
+    xTaskCreate(buttonScanning, "buttonScan", 512, NULL, 2, NULL);
+    xTaskCreate(timeKeeping, "timeKeep", 512, NULL, 3, NULL);
+
+    vTaskStartScheduler();
+
+    while (1);
+}
+
+static void setupButtons()
+{
+    btnPlayPause.begin();
+    btnPlayPause.setTickIntervalMs(20);
+    btnPlayPause.setDebounceMs(30);
+
+    btnRestart.begin();
+    btnRestart.setTickIntervalMs(20);
+    btnRestart.setDebounceMs(30);
+}
+
+static void initializeDisplay(tContext &context)
+{
+    Crystalfontz128x128_Init();
+    Crystalfontz128x128_SetOrientation(LCD_ORIENTATION_UP);
+    GrContextInit(&context, &g_sCrystalfontz128x128);
+    GrContextFontSet(&context, &g_sFontFixed6x8);
+
+    tRectangle full = {0, 0, 127, 127};
+    GrContextForegroundSet(&context, ClrBlack);
+    GrRectFill(&context, &full);
+}
+
+static void drawButton(tContext &context, const MyButton &btn)
+{
+    /*uint16_t bgColor = btn.pressed ? ClrBlack : ClrGray;
+    uint16_t textColor = btn.pressed ? ClrWhite : ClrBlack;
+
+    tRectangle rect = {btn.x, btn.y, btn.x + btn.w - 1, btn.y + btn.h - 1};
+    GrContextForegroundSet(&context, bgColor);
+    GrRectFill(&context, &rect);
+
+    GrContextForegroundSet(&context, ClrBlack);
+    GrRectDraw(&context, &rect);
+
+    GrContextForegroundSet(&context, textColor);
+    GrStringDrawCentered(&context, btn.label, -1, btn.x + btn.w / 2, btn.y + btn.h / 2, false);*/
+}
+
+static void drawStopwatchScreen(tContext &context, bool running)
+{
+    /*uint16_t milseconds = g_ms;
+    uint8_t seconds = g_sec;
+    uint8_t minutes = g_min;
+    uint8_t hours = g_hr;
+
+    char timeSTR[20];
+
+    tRectangle rectFull = {0, 0, 127, 127};
+    GrContextForegroundSet(&context, ClrBlack);
+    GrRectFill(&context, &rectFull);
+
+    GrContextForegroundSet(&context, ClrCyan);
+    GrStringDrawCentered(&context, "STOPWATCH", -1, 64, 15, false);
+
+    snprintf(timeSTR, sizeof(timeSTR), "%02u : %02u : %02u : %02u", hours, minutes, seconds, milseconds);
+
+    if (running){
+        GrContextForegroundSet(&context, ClrGreen);
+        GrStringDrawCentered(&context, "Running", -1, 64, 35, false);
+
+        GrContextForegroundSet(&context, ClrYellow);
+        GrStringDrawCentered(&context, timeSTR, -1, 64, 50, false);
+    }
+    else{
+        GrContextForegroundSet(&context, ClrRed);
+        GrStringDrawCentered(&context, "Stopped", -1, 64, 35, false);
+
+        GrContextForegroundSet(&context, ClrOlive);
+        GrStringDrawCentered(&context, timeSTR, -1, 64, 50, false);
+    }*/
+}
