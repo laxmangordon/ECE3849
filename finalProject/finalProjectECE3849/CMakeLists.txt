@@ -52,7 +52,8 @@ pico_sdk_init()
 add_executable(finalProjectECE3849
     src/finalProjectECE3849.c
     src/display.c
-    src/lightSensor.c)
+    src/lightSensor.c
+    src/mpu6050.c)
 
 pico_set_program_name(finalProjectECE3849 "finalProjectECE3849")
 pico_set_program_version(finalProjectECE3849 "0.1")
@@ -66,6 +67,7 @@ target_link_libraries(finalProjectECE3849
     pico_stdlib
     hardware_pwm
     hardware_adc
+    hardware_i2c
     FreeRTOS-Kernel
     FreeRTOS-Kernel-Heap4)
 

@@ -3,6 +3,7 @@
 static void vDisplayTask(void *pvParameters);
 static void vDisplayBrightnessTask(void *pvParameters);
 static void vlightSensorTask(void *pvParameters);
+static void vMPU6050Task(void *pvParameters);
 
 int displayBacklightMode = 0;
 
@@ -13,9 +14,10 @@ int main()
     ledInit();
     displayInit(); //TESTING
 
-    xTaskCreate(vDisplayTask,  "Display",  512, NULL, 1, NULL);
+    xTaskCreate(vDisplayTask,  "Display",  512, NULL, 1, NULL); //not implemented yet
     xTaskCreate(vDisplayBrightnessTask,  "Brightness",  512, NULL, 1, NULL);
     xTaskCreate(vlightSensorTask,  "LightSensor",  512, NULL, 2, NULL);
+    xTaskCreate(vMPU6050Task,  "MPU",  512, NULL, 2, NULL);
 
     vTaskStartScheduler();
 
@@ -31,20 +33,20 @@ static void vDisplayTask (void *pvParameters){
 
 static void vDisplayBrightnessTask(void *pvParameters){
     static int currentPWM = 4094;
-    int lowPWM = 800;
-    int highPWM = 4095;
+    const int lowPWM = 800;
+    const int highPWM = 4095;
 
     for(;;){
         switch (displayBacklightMode){
             case 0:
-                while (currentPWM != lowPWM){
+                if (currentPWM != lowPWM){
                     currentPWM--;
                     pwm_set_gpio_level(pinBacklight, currentPWM);
                     vTaskDelay(pdMS_TO_TICKS(1));
                 }
                 break;
             case 1:
-                while (currentPWM != highPWM){
+                if (currentPWM != highPWM){
                     currentPWM++;
                     pwm_set_gpio_level(pinBacklight, currentPWM);
                     vTaskDelay(pdMS_TO_TICKS(1));
@@ -56,7 +58,7 @@ static void vDisplayBrightnessTask(void *pvParameters){
 
 static void vlightSensorTask(void *pvParameters){
     for(;;){
-        int adcVal = ledADCMeasure();
+        int adcVal = ledADCMeasureAVG();
         if (adcVal < 760){
             displayBacklightMode = 0;
         }
@@ -66,4 +68,8 @@ static void vlightSensorTask(void *pvParameters){
         printf("%d \n", adcVal);
         vTaskDelay(pdMS_TO_TICKS(10));
     }
+}
+
+static void vMPU6050Task(void *pvParameters){
+
 }
