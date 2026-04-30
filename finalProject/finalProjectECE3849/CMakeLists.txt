@@ -53,7 +53,8 @@ add_executable(finalProjectECE3849
     src/finalProjectECE3849.c
     src/display.c
     src/lightSensor.c
-    src/mpu6050.c)
+    src/mpu6050.c
+    libs/rpi-pico-mpu6050-master/src/MPU6050.c)
 
 pico_set_program_name(finalProjectECE3849 "finalProjectECE3849")
 pico_set_program_version(finalProjectECE3849 "0.1")
@@ -77,6 +78,7 @@ target_include_directories(finalProjectECE3849 PRIVATE
         include/
         "${FREERTOS_DIR}/include"
         "${FREERTOS_PORT_DIR}/include"
+        libs/rpi-pico-mpu6050-master/include/haw/
 )
 
 pico_add_extra_outputs(finalProjectECE3849)

@@ -3,7 +3,7 @@
 
 #define pinLED 26
 
-#define ADCAverageNumber 16
+#define ADCAverageNumber 100 //std. of 0.1
 
 void ledInit();
 

@@ -12,5 +12,8 @@
 
 #include "display.h"
 #include "lightSensor.h"
+#include "mpu6050.h"
+
+#include "libs/rpi-pico-mpu6050-master/include/haw/MPU6050.h"
 
 #endif
